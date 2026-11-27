@@ -11,20 +11,27 @@ export default defineConfig(() => ({
   // The actual storefront is the static app under /public. Build it as the
   // deployment root instead of publishing the empty React scaffold at /.
   root: storefrontRoot,
-  publicDir: false,
+  publicDir: false as const,
   plugins: [
     react(),
     tailwindcss(),
     {
-      name: 'copy-unbundled-src-assets',
+      name: 'copy-unbundled-storefront-assets',
       apply: 'build',
       closeBundle(error?: Error): void {
         if (error) return;
         const distDir = path.resolve(projectRoot, 'dist');
-        const srcAssets = path.resolve(projectRoot, 'src/assets');
-        const distAssets = path.resolve(distDir, 'src/assets');
-        if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
-          fs.cpSync(srcAssets, distAssets, { recursive: true, force: true });
+        const assetDirs = [
+          ['js', path.resolve(storefrontRoot, 'js')],
+          ['styles', path.resolve(storefrontRoot, 'styles')],
+          ['assets', path.resolve(storefrontRoot, 'assets')],
+          ['src/assets', path.resolve(projectRoot, 'src/assets')],
+        ] as const;
+
+        for (const [relativePath, sourcePath] of assetDirs) {
+          if (fs.existsSync(sourcePath)) {
+            fs.cpSync(sourcePath, path.resolve(distDir, relativePath), { recursive: true, force: true });
+          }
         }
       },
     },

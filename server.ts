@@ -1,10 +1,11 @@
 import "dotenv/config";
 import express from "express";
+import fs from "node:fs/promises";
 import path from "node:path";
 import type { HttpMethod } from "./src/api/api";
-import { FileDatabaseAdapter } from "./src/api/classes/FileDatabaseAdapter";
 import { HttpChannelDispatcherAdapter } from "./src/api/classes/Adapters";
 import { Init } from "./src/api/classes/Init";
+import { NeonDatabaseAdapter } from "./src/api/classes/NeonDatabaseAdapter";
 import { seedInitialData } from "./src/api/seed";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -33,9 +34,34 @@ function buildCookieString(name: string, value: string, maxAgeSeconds: number, i
   return parts.join("; ");
 }
 
+async function migrateLocalData(db: NeonDatabaseAdapter): Promise<void> {
+  if (!(await db.isEmpty())) return;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(await fs.readFile(DATA_FILE_PATH, "utf8")) as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw new Error("Could not read the legacy JSON database for migration.", { cause: error });
+  }
+
+  for (const [collection, records] of Object.entries(parsed)) {
+    if (!Array.isArray(records)) continue;
+    for (const record of records) {
+      if (!record || typeof record !== "object" || Array.isArray(record)) continue;
+      const value = record as Record<string, unknown>;
+      if (value.id === undefined || value.id === null) continue;
+      await db.insert(collection, value);
+    }
+  }
+}
+
 export async function createApp() {
-  const db = new FileDatabaseAdapter(DATA_FILE_PATH);
-  await seedInitialData(db);
+  const db = new NeonDatabaseAdapter();
+  await db.withInitializationLock(async () => {
+    await migrateLocalData(db);
+    await seedInitialData(db);
+  });
 
   const channels = new HttpChannelDispatcherAdapter({
     emailUrl: process.env.EMAIL_WEBHOOK_URL,
