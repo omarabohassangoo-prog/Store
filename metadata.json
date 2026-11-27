@@ -1,0 +1,6 @@
+{
+  "name": "Souq Al-Kul — سوق الكل",
+  "description": "منصة سوق الكل المتكاملة متعددة الأدوار لإدارة التجارة الإلكترونية، المتاجر، الطلبات، الشحن، والمحتوى.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

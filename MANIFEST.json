@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-11-27T20:04:52.552Z",
+  "total_files": 31,
+  "bundles": [
+    {
+      "bundle": "core",
+      "version": "1.0.0",
+      "files": 4
+    },
+    {
+      "bundle": "services",
+      "version": "1.0.1",
+      "files": 1
+    },
+    {
+      "bundle": "init-actions",
+      "version": "1.0.0",
+      "files": 4
+    },
+    {
+      "bundle": "api",
+      "version": "1.0.1",
+      "files": 1
+    },
+    {
+      "bundle": "managers",
+      "version": "1.0.0",
+      "files": 4
+    },
+    {
+      "bundle": "frontend",
+      "version": "1.0.0",
+      "files": 17
+    }
+  ]
+}
