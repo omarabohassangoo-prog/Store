@@ -8,9 +8,8 @@ const projectRoot = process.cwd();
 const storefrontRoot = path.resolve(projectRoot, 'public');
 
 export default defineConfig(() => ({
-  // The actual storefront is the static app under /public. Build it as the
-  // deployment root instead of publishing the empty React scaffold at /.
   root: storefrontRoot,
+  // `false as const` keeps the Vite config type narrow under TypeScript 7.
   publicDir: false as const,
   plugins: [
     react(),
@@ -46,7 +45,6 @@ export default defineConfig(() => ({
     emptyOutDir: true,
   },
   server: {
-    // HMR is disabled in AI Studio via DISABLE_HMR env var.
     hmr: process.env.DISABLE_HMR !== 'true',
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
   },

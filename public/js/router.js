@@ -1,7 +1,3 @@
-/**
- * public/js/router.js
- * راوتر أمامي بسيط (hash-based).
- */
 (function () {
   const routes = [];
   let currentPath = null;
@@ -45,22 +41,15 @@
     const hash = location.hash.slice(1) || "/";
     const matched = match(hash);
     const root = document.getElementById("app");
+    if (!root) return;
 
-    if (!matched) {
-      return Errors.render(root, 404);
-    }
-
+    if (!matched) return Errors.render(root, 404);
     const opts = matched.options;
     if (window.Guards && Guards.checkRoute) {
       if (!Guards.checkRoute(root, opts)) return;
     } else {
-      if (opts.requiresAuth && !Auth.isAuthenticated()) {
-        return navigate("/login", true);
-      }
-      if (opts.roles && opts.roles.length > 0) {
-        const role = Auth.getRole();
-        if (!opts.roles.includes(role)) return Errors.render(root, 403);
-      }
+      if (opts.requiresAuth && !Auth.isAuthenticated()) return navigate("/login", true);
+      if (opts.roles && opts.roles.length > 0 && !opts.roles.includes(Auth.getRole())) return Errors.render(root, 403);
     }
 
     currentPath = hash;
@@ -68,16 +57,21 @@
       await matched.handler(root, matched.params || {});
     } catch (err) {
       console.error("Route error:", err);
-      root.innerHTML = "<div class=\"card\"><h2>خطأ في العرض</h2><p>" + (err.message || "") + "</p></div>";
+      const card = document.createElement("div");
+      card.className = "card";
+      const heading = document.createElement("h2");
+      heading.textContent = "خطأ في العرض";
+      const message = document.createElement("p");
+      message.textContent = err instanceof Error ? err.message : String(err || "");
+      card.append(heading, message);
+      root.replaceChildren(card);
     }
   }
 
   function getCurrentPath() { return currentPath; }
-
   function start() {
     window.addEventListener("hashchange", resolve);
     resolve();
   }
-
   window.Router = { add, navigate, resolve, start, getCurrentPath };
 })();

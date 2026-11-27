@@ -60,7 +60,11 @@ export async function createApp() {
   const db = new NeonDatabaseAdapter();
   await db.withInitializationLock(async () => {
     await migrateLocalData(db);
-    await seedInitialData(db);
+    // Demo records are useful locally, but must never appear in a production
+    // database unless explicitly requested for a disposable demo environment.
+    if (process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_DATA === "true") {
+      await seedInitialData(db);
+    }
   });
 
   const channels = new HttpChannelDispatcherAdapter({
@@ -69,15 +73,19 @@ export async function createApp() {
     whatsappUrl: process.env.WHATSAPP_WEBHOOK_URL,
     bearerToken: process.env.CHANNELS_BEARER_TOKEN,
   });
-
   const system = Init.bootstrap({ db, channels });
   const app = express();
   app.set("trust proxy", true);
   app.disable("x-powered-by");
 
-  app.use((_req, res, next) => {
+  app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
     next();
   });
   app.use(express.json({ limit: "2mb" }));
@@ -112,13 +120,7 @@ export async function createApp() {
         if (typeof value === "string") normalizedHeaders[key] = value;
         else if (Array.isArray(value) && value.length > 0) normalizedHeaders[key] = value[0];
       }
-      const response = await system.router.dispatch({
-        method,
-        path: req.originalUrl,
-        query: req.query as Record<string, unknown>,
-        body: req.body,
-        headers: normalizedHeaders,
-      });
+      const response = await system.router.dispatch({ method, path: req.originalUrl, query: req.query as Record<string, unknown>, body: req.body, headers: normalizedHeaders });
       const isHttps = req.secure || req.headers["x-forwarded-proto"] === "https";
       const routePath = req.path;
       if (response.success && ["/api/v1/auth/login", "/api/v1/auth/bootstrap-admin"].includes(routePath) &&
@@ -144,7 +146,6 @@ export async function createApp() {
     if (req.path.startsWith("/api/")) return next();
     return res.sendFile(path.join(PUBLIC_DIR, "index.html"));
   });
-
   return app;
 }
 
@@ -152,9 +153,7 @@ export const appPromise = createApp();
 
 if (process.env.VERCEL !== "1") {
   appPromise.then((app) => {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Souq Al-Kul server running on http://0.0.0.0:${PORT}`);
-    });
+    app.listen(PORT, "0.0.0.0", () => console.log(`Souq Al-Kul server running on http://0.0.0.0:${PORT}`));
   }).catch((error) => {
     console.error("Failed to start server:", error);
     process.exitCode = 1;
